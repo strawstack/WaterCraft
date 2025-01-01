@@ -43,7 +43,7 @@ export async function waterCraft(fid) {
         if (isHost()) { // new peer joins; inform others
             broadcast({ 
                 type: 'WC_PEERS',
-                peers: Object.keys(peers)
+                peers: [...Object.keys(peers), pid]
             });
         }
 
@@ -63,28 +63,37 @@ export async function waterCraft(fid) {
                             } else { // not host
                                 if (fid === getHost()) {
                                     peers[fid].ping = new Date();
+                                    conn.send({ type: 'WC_PING' });
                                 } else {
                                     conn.send({ 
                                         type: 'WC_PEERS',
-                                        peers: Object.keys(peers)
+                                        peers: [...Object.keys(peers), pid]
                                     });
                                 }
                             }
                             return;
 
                         } else if (content.type === "WC_PEERS") {
-                            const { peers: new_peers } = content;
-                            for (const npid of new_peers) {
-                                if (!(npid in peers)) onConnection(peer.connect(npid));
+                            if (!isHost()) {
+                                const { peers: new_peers } = content;
+                                for (const npid of new_peers) {
+                                    if (!(npid in peers)) onConnection(peer.connect(npid));
+                                }
+                                if (fid === getHost()) {
+                                    const remove = [];
+                                    for (const fid in peers) {
+                                        if (!(fid in new_peers)) {
+                                            remove.push(fid);
+                                        }
+                                    }
+                                    for (const fid of remove) {
+                                        const { cid } = peers[fid];
+                                        delete peers[fid];
+                                        delete conns[cid];
+                                    }
+                                }
                             }
                             return;
-                        } else if (content.type === "WC_REMOVE") {
-                            const { remove } = content;
-                            for (const fid of remove) {
-                                const { cid } = peers[fid];
-                                delete peers[fid];
-                                delete conns[cid];
-                            }
                         }
                     }
                 } catch (e) {}
@@ -135,22 +144,20 @@ export async function waterCraft(fid) {
                 delete peers[fid];
                 delete conns[cid];
             }
-            broadcast({ // Inform others of unresponsive peers
-                type: 'WC_REMOVE',
-                remove
-            });
+            if (remove.length > 0) {
+                broadcast({ // Inform others of unresponsive peers
+                    type: 'WC_PEERS',
+                    peers
+                });
+            }
             broadcast({ // Ping peers, so they know host is responsive
                 type: 'WC_PING'
             });
 
         } else { // not host
+            // remove if unresponsive
             const hid = getHost();
-
-            // ping host
-            const { isOpen, conn } = conns[peers[hid].cid];
-            if (isOpen) conn.send({ type: 'WC_PING' });
-
-            const now = new Date(); // remove unresponsive host
+            const now = new Date(); 
             const { ping } = peers[hid];
             if (now - ping > 2.5 * STEP) {
                 const { cid } = peers[hid];

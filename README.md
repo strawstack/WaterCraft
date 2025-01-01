@@ -15,21 +15,22 @@ If one wants to create a P2P network of several nodes, they may begin by having 
 - [x] If you're the host and are removing peers notify others.
 - [x] When a new peer contacts the host, the host should broadcast a list of all peers.
 
-
 # Overview
 
-1. Before a NodeA joins the network, they are given a NodeId.
-2. NodeA uses a NodeId to contact say NodeB that is already in the network.
-3. NodeB responds with a list of all other known Nodes in the network.
-4. NodeA uses this information to determine which Node is the current host.
-5. The current host is the Node that has been in the network for the longest time.
-6. The Node that originates the network begins as the host.
-7. Every node after the original Node joins the network.
-8. Nodes that join the network may become the host after some amount of time.
-9. A heartbeat signal is used to determine if nodes are still active.
-10. If a NodeA is the host and cannot be reached then the calling Node say NodeB will decide on a new host.
-11. NodeB will either successfully ontact a new host, or be told which node is the new host.
-12. The host maintains a list of all nodes in the network.
-13. On first contact with the host, the calling node is told the list of connected nodes.
-14. If a host learns that a new node has joined, the host sends out an updated list.
-15. When contacting the host, nodes report the number of nodes that they believe are in the network, and the host sends details if the number is incorrect.
+1. Every interval of duration `STEP`, the host checks for unresponsive peers. If peers are removed, a new peer list is broadcasted.
+2. Every interval of duration `STEP`, the host broadcasts a `ping` to all peers. 
+3. Every interval of duration `STEP`, non-hosts verify that the host is still responsive, and remove the host if necessary.
+4. On receipt of `WC_PING`, the host updates last `ping` time for given peer, or connects with a formerly unknown peer.
+5. On receipt of `WC_PING` if sender is the host, non-hosts updates last `ping` time, else respond with a list of `WC_PEERS`.
+6. On receipt of `WC_PEERS`, non-hosts update their peers lists to contain all known peers.
+7. On receipt of `WC_PEERS` if sender is the host, non-hosts remove local peers that the host doesn't acknoledge.
+8. If a host becomes unresponsive, all non-host peers will remove the host, a new peer will take over as host and begin broadcasting.
+9. New peer joins and becomes new host, old host learns of new host. Old host sends peer list on ping from peers.
+10. New peer joins and becomes new host, new host broadcasts peer list on first contact with each peer.
+
+Cases below relate to joining multiple networks behaviour will vary with host selection:
+
+11. If a peer joins two existing networks and is not the host of either, peer would choose one host over the other and drop other network.
+12. If non-host joins a second network and becomes new host, new host broadcasts peer list. 
+13. If host joins a second network and is not host, ping from second network tells host they are a non-host. Pings from first network peers will get a peer list response.
+14. If host joins a second network and becomes host, host broadcasts peer list. 
