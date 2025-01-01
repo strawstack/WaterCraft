@@ -61,19 +61,21 @@ export async function waterCraft(fid) {
                                     onConnection(peer.connect(fid));
                                 }
                             } else { // not host
-                                conn.send({ 
-                                    type: 'WC_PEERS',
-                                    peers: Object.keys(peers)
-                                });
+                                if (fid === getHost()) {
+                                    peers[fid].ping = new Date();
+                                } else {
+                                    conn.send({ 
+                                        type: 'WC_PEERS',
+                                        peers: Object.keys(peers)
+                                    });
+                                }
                             }
                             return;
 
                         } else if (content.type === "WC_PEERS") {
                             const { peers: new_peers } = content;
                             for (const npid of new_peers) {
-                                if (!(npid in peers)) {
-                                    onConnection(peer.connect(npid));
-                                }
+                                if (!(npid in peers)) onConnection(peer.connect(npid));
                             }
                             return;
                         } else if (content.type === "WC_REMOVE") {
@@ -124,8 +126,8 @@ export async function waterCraft(fid) {
         if (isHost()) { // remove unresponsive peers
             const remove = [];
             for (const fid in peers) {
-                const { ping } = peers[fid];
                 const now = new Date();
+                const { ping } = peers[fid];
                 if (now - ping > 2.5 * STEP) remove.push(fid);
             }
             for (const fid of remove) {
@@ -133,16 +135,27 @@ export async function waterCraft(fid) {
                 delete peers[fid];
                 delete conns[cid];
             }
-            broadcast({
+            broadcast({ // Inform others of unresponsive peers
                 type: 'WC_REMOVE',
                 remove
             });
+            broadcast({ // Ping peers, so they know host is responsive
+                type: 'WC_PING'
+            });
 
-        } else { // ping host
+        } else { // not host
             const hid = getHost();
-            if (hid in peers && peers[hid].cid in conns) {
-                const { isOpen, conn } = conns[peers[hid].cid];
-                if (isOpen) conn.send({ type: 'WC_PING' });
+
+            // ping host
+            const { isOpen, conn } = conns[peers[hid].cid];
+            if (isOpen) conn.send({ type: 'WC_PING' });
+
+            const now = new Date(); // remove unresponsive host
+            const { ping } = peers[hid];
+            if (now - ping > 2.5 * STEP) {
+                const { cid } = peers[hid];
+                delete peers[hid];
+                delete conns[cid];
             }
         }
     }, STEP);

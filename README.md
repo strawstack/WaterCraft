@@ -8,10 +8,9 @@ If one wants to create a P2P network of several nodes, they may begin by having 
 
 # Todo
 
-- [ ] Consider that every peer should maintain an alive list for themselves because.
+- [x] Consider that every peer should maintain an alive list for themselves because.
     - They have to track if the host is still there.
     - They need to know how to find a new host if the host leaves.
-
 - [x] If you are pinged and are not the host, then respond with a list of all peers.
 - [x] If you're the host and are removing peers notify others.
 - [x] When a new peer contacts the host, the host should broadcast a list of all peers.
