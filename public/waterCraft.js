@@ -2,7 +2,7 @@ import { Peer } from "./peerjs.min.js"
 
 export async function waterCraft(fid) {
 
-    const STEP = 1.2;
+    const STEP = 1000; // Ping interval
 
     const peers = {};
     const conns = {};
@@ -27,14 +27,65 @@ export async function waterCraft(fid) {
         userOnMsg = func;
     };
 
+    const broadcast = msg => {
+        const json = JSON.stringify(msg);
+        for (const { isOpen, conn } of Object.values(conns) ) {
+            if (isOpen) conn.send(json);
+        }
+    };
+
     const onConnection = conn => {
         const { peer: fid, connectionId: cid } = conn;
         if (fid in peers && peers[fid].cid in conns) return; // already connected
-        peers[fid] = { cid };
+        peers[fid] = { cid, ping: new Date() };
         conns[cid] = { fid, isOpen: false, conn };
+
+        if (isHost()) { // new peer joins; inform others
+            broadcast({ 
+                type: 'WC_PEERS',
+                peers: Object.keys(peers)
+            });
+        }
+
         conn.on('open', () => {
             conns[cid].isOpen = true;
             conn.on('data', data => {
+                try {
+                    const content = JSON.parse(data);
+                    if ('type' in content) {
+                        if (content.type === "WC_PING") {
+                            if (isHost()) {
+                                if (fid in peers) {
+                                    peers[fid].ping = new Date();
+                                } else {
+                                    onConnection(peer.connect(fid));
+                                }
+                            } else { // not host
+                                conn.send({ 
+                                    type: 'WC_PEERS',
+                                    peers: Object.keys(peers)
+                                });
+                            }
+                            return;
+
+                        } else if (content.type === "WC_PEERS") {
+                            const { peers: new_peers } = content;
+                            for (const npid of new_peers) {
+                                if (!(npid in peers)) {
+                                    onConnection(peer.connect(npid));
+                                }
+                            }
+                            return;
+                        } else if (content.type === "WC_REMOVE") {
+                            const { remove } = content;
+                            for (const fid of remove) {
+                                const { cid } = peers[fid];
+                                delete peers[fid];
+                                delete conns[cid];
+                            }
+                        }
+                    }
+                } catch (e) {}
                 userOnMsg(data);
             });
         });
@@ -45,38 +96,61 @@ export async function waterCraft(fid) {
     const connect = fid => onConnection(peer.connect(fid));
     if (fid) connect(fid);
 
-    const sendMsg = (content, fid) => {
+    const send = (content, fid) => {
         console.log(`sending...`);
-        if (isHost()) {
-            console.log(`is host...`);
-            if (fid) {
-                if (fid in peers && peers[fid].cid in conns) {
-                    const { isOpen, conn } = conns[peers[fid].cid];
-                    if (isOpen) conn.send(content);
-                }
-
-            } else { // broadcast
-                console.log(`broadcast...`);
-                for (const { isOpen, conn } of Object.values(conns) ) {
-                    console.log(`isOpen: ${isOpen}`);
-                    if (isOpen) conn.send(content);
-                }
+        const json_content = JSON.stringify(content);
+        if (fid) {
+            console.log(`direct to fid...`);
+            if (fid in peers && peers[fid].cid in conns) {
+                const { isOpen, conn } = conns[peers[fid].cid];
+                if (isOpen) conn.send(json_content);
             }
+        } else if (isHost()) {
+            console.log(`is host...`);
+            console.log(`broadcast...`);
+            broadcast(content);
 
         } else { // not host
             console.log(`not host...`);
             const hid = getHost();
             if (hid in peers && peers[hid].cid in conns) {
                 const { isOpen, conn } = conns[peers[hid].cid];
-                if (isOpen) conn.send(content);
+                if (isOpen) conn.send(json_content);
             }
         }
     };
 
+    setInterval(() => {
+        if (isHost()) { // remove unresponsive peers
+            const remove = [];
+            for (const fid in peers) {
+                const { ping } = peers[fid];
+                const now = new Date();
+                if (now - ping > 2.5 * STEP) remove.push(fid);
+            }
+            for (const fid of remove) {
+                const { cid } = peers[fid];
+                delete peers[fid];
+                delete conns[cid];
+            }
+            broadcast({
+                type: 'WC_REMOVE',
+                remove
+            });
+
+        } else { // ping host
+            const hid = getHost();
+            if (hid in peers && peers[hid].cid in conns) {
+                const { isOpen, conn } = conns[peers[hid].cid];
+                if (isOpen) conn.send({ type: 'WC_PING' });
+            }
+        }
+    }, STEP);
+
     return {
         id: pid,
         connect,
-        sendMsg,
+        send,
         onMsg
     };
 }

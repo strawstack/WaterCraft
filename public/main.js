@@ -28,7 +28,7 @@ export async function main() {
     const host = peers.find(p => p.id === hid);
 
     setTimeout(() => {
-        host.sendMsg("msg from host");
+        host.send("msg from host");
     }, 3000);
 
 }
