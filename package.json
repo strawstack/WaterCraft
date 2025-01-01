@@ -1,0 +1,11 @@
+{
+  "name": "hotpocket",
+  "module": "hotpocket.js",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run ./public/hotpocket.js SERVER"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
