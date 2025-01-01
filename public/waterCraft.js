@@ -2,6 +2,8 @@ import { Peer } from "./peerjs.min.js"
 
 export async function waterCraft(fid) {
 
+    const STEP = 1.2;
+
     const peers = {};
     const conns = {};
 
@@ -12,8 +14,8 @@ export async function waterCraft(fid) {
     });
 
     const getHost = () => {
-        const peers = [...Object.keys(peers), pid].sort((a, b) => a.localeCompare(b));
-        return peers[0];
+        const sorted_peers = [...Object.keys(peers), pid].sort((a, b) => a.localeCompare(b));
+        return sorted_peers[0];
     };
 
     const isHost = () => {
@@ -27,6 +29,7 @@ export async function waterCraft(fid) {
 
     const onConnection = conn => {
         const { peer: fid, connectionId: cid } = conn;
+        if (fid in peers && peers[fid].cid in conns) return; // already connected
         peers[fid] = { cid };
         conns[cid] = { fid, isOpen: false, conn };
         conn.on('open', () => {
@@ -37,28 +40,31 @@ export async function waterCraft(fid) {
         });
     };
 
-    // Receive connection from other
     peer.on('connection', conn => onConnection(conn));
 
-    // Connect with other
     const connect = fid => onConnection(peer.connect(fid));
     if (fid) connect(fid);
 
     const sendMsg = (content, fid) => {
+        console.log(`sending...`);
         if (isHost()) {
+            console.log(`is host...`);
             if (fid) {
                 if (fid in peers && peers[fid].cid in conns) {
                     const { isOpen, conn } = conns[peers[fid].cid];
                     if (isOpen) conn.send(content);
                 }
 
-            } else {
+            } else { // broadcast
+                console.log(`broadcast...`);
                 for (const { isOpen, conn } of Object.values(conns) ) {
+                    console.log(`isOpen: ${isOpen}`);
                     if (isOpen) conn.send(content);
                 }
             }
 
-        } else { // peer is not host
+        } else { // not host
+            console.log(`not host...`);
             const hid = getHost();
             if (hid in peers && peers[hid].cid in conns) {
                 const { isOpen, conn } = conns[peers[hid].cid];
