@@ -15,14 +15,17 @@ export async function waterCraft(fid) {
     });
 
     // Debug
-    const D = true;
+    const D = false;
     const last4 = id => id.slice(id.length - 4);
     const log = msg => {
         if (D) console.log(`${last4(pid)}: ${msg}`);
     };
 
     const _debug_info = () => {
-        return `${last4(pid)}: ${Object.keys(peers).map(p => last4(p)).join(", ")}`;
+        return {
+            peers,
+            conns
+        };
     };
 
     log("created");

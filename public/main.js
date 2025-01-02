@@ -2,56 +2,79 @@ import { waterCraft } from './waterCraft.js'
       
 export async function main() {
     
-    async function wait() {
-        return new Promise((res, _) => {
-            setTimeout(res, Math.random() * 1200);
-        });
-    }
+    // async function wait() {
+    //     return new Promise((res, _) => {
+    //         setTimeout(res, Math.random() * 1200);
+    //     });
+    // }
 
     // Record all peers
     const track = {};
 
-    async function peer() {
-        return waterCraft();
+    const getHost = () => {
+        const hid = Object.keys(track).sort((a, b) => a.localeCompare(b))[0];
+        return track[hid];
+    };
+
+    const getPeer = () => {
+        const r = Math.floor(Math.random() * Object.keys(track).length - 1) + 1;
+        const pid = Object.keys(track).sort((a, b) => a.localeCompare(b))[r];
+        return track[pid];
+    };
+
+    async function createPeer() {
+        const old_host = getHost();
+
+        const w = await waterCraft();
+        track[w.id] = w;
+
+        const h = getHost();
+        if (h.id === w.id) {
+            console.log("CREATE: NEW HOST");
+        } else {
+            console.log("CREATE: PEER");
+        }
+
+        w.connect((Math.random() < 0.2) ? old_host.id : getPeer().id);
     }
 
-    setInterval(() => {
-        // Record all stats
-        // display them
-        // Number of peers that don't have correct knowledge
-        // 
-    }, 1000);
+    function removePeer() {
+        if (Math.random() < 0.4) {
+            console.log("REM: HOST");
+            const h = getHost();
+            h.destroy();
+            delete track[h.id];
 
-    // Create Peers
-    const peers = [];
-    peers.push(await waterCraft());
-    peers.push(await waterCraft());
-    peers.push(await waterCraft());
+        } else {
+            console.log("REM: PEER");
+            const p = getPeer();
+            p.destroy();
+            delete track[p.id];
 
-    const hid = peers.map(w => w.id).sort((a, b) => a.localeCompare(b))[0];
-    const nhid = peers.map(w => w.id).sort((a, b) => a.localeCompare(b))[1];
-
-    for (let p of peers) {
-        if (p.id !== hid) p.connect(hid);
+        }
     }
-
-    // const host = peers.find(p => p.id === hid);
-
-    console.log("BREAK");
-    const other = await waterCraft(nhid);
-    peers.push(other);
-
-    const vp = document.querySelector(".viewport");
-    window.addEventListener("keypress", e => {
+    
+    window.addEventListener("keypress", async e => {
         if (e.code === "Space") {
-            const info = [];
-            for (let p of peers) {
-                info.push(
-                    p._debug_info()
-                );
+            if (Object.keys(track).length > 9) {
+                await createPeer();
+    
+            } else if (Object.keys(track).length < 2) {
+                removePeer();
+    
+            } else if (Math.random() > 0.4) {
+                await createPeer();
+    
+            } else {
+                removePeer();
+                
             }
-            vp.innerHTML = info.join("\n");
         }
     });
 
+    // Display stats
+    const vp = document.querySelector(".viewport");
+    setInterval(() => {
+        
+    }, 250);
 }
