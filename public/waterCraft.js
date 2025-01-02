@@ -23,8 +23,7 @@ export async function waterCraft(fid) {
 
     const _debug_info = () => {
         return {
-            peers,
-            conns
+            peers: Object.keys(peers).map(p => last4(p)) 
         };
     };
 
@@ -231,6 +230,7 @@ export async function waterCraft(fid) {
         connect,
         send,
         onMsg,
-        _debug_info
+        _debug_info,
+        close: () => peer.destroy()
     };
 }
