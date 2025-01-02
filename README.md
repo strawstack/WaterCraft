@@ -15,6 +15,10 @@ If one wants to create a P2P network of several nodes, they may begin by having 
 - [x] If you're the host and are removing peers notify others.
 - [x] When a new peer contacts the host, the host should broadcast a list of all peers.
 
+# Issues
+
+- [ ] When a new peer joins, they can become the host before learning about other peers
+
 # Overview
 
 1. Every interval of duration `STEP`, the host checks for unresponsive peers. If peers are removed, a new peer list is broadcasted.

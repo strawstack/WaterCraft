@@ -20,6 +20,10 @@ export async function waterCraft(fid) {
         if (D) console.log(`${last4(pid)}: ${msg}`);
     };
 
+    const _debug_info = () => {
+        return `${last4(pid)}: ${Object.keys(peers).map(p => last4(p)).join(", ")}`;
+    };
+
     log("created");
 
     const getHost = () => {
@@ -62,6 +66,13 @@ export async function waterCraft(fid) {
                     type: 'WC_PEERS',
                     peers: [...Object.keys(peers), pid]
                 });
+            } else { // not host; respond with peer list
+                conn.send(
+                    JSON.stringify({ 
+                        type: 'WC_PEERS',
+                        peers: [...Object.keys(peers), pid]
+                    })
+                );
             }
 
             conn.on('data', data => {
@@ -109,23 +120,6 @@ export async function waterCraft(fid) {
                                     if (!(npid in peers)) onConnection(peer.connect(npid));
                                 }
                                 log(`  peers: ${Object.keys(peers).map(p => last4(p))}`);
-                                if (fid === getHost()) {
-                                    const remove = [];
-                                    for (const fid in peers) {
-                                        if (!(new_peers.includes(fid))) {
-                                            remove.push(fid);
-                                        }
-                                    }
-                                    if (remove.length > 0) {
-                                        log(`  WC_PEERS from host removing...`);
-                                        log(`  remove: ${remove.map(p => last4(p))}`);
-                                    }
-                                    for (const fid of remove) {
-                                        const { cid } = peers[fid];
-                                        delete peers[fid];
-                                        delete conns[cid];
-                                    }
-                                }
                             }
                             return;
                         }
@@ -142,16 +136,20 @@ export async function waterCraft(fid) {
     if (fid) connect(fid);
 
     const send = (content, fid) => {
+        log(`sending...`);
         const json_content = JSON.stringify(content);
         if (fid) {
+            log(`  direct...`);
             if (fid in peers && peers[fid].cid in conns) {
                 const { isOpen, conn } = conns[peers[fid].cid];
                 if (isOpen) conn.send(json_content);
             }
         } else if (isHost()) {
+            log(`  broadcasting...`);
             broadcast(content);
 
         } else { // not host
+            log(`  sending to host...`);
             const hid = getHost();
             if (hid in peers && peers[hid].cid in conns) {
                 const { isOpen, conn } = conns[peers[hid].cid];
@@ -205,6 +203,7 @@ export async function waterCraft(fid) {
         id: pid,
         connect,
         send,
-        onMsg
+        onMsg,
+        _debug_info
     };
 }
