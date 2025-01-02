@@ -11,6 +11,8 @@ export async function main() {
     // Record all peers
     const track = {};
 
+    const last4 = id => id.slice(id.length - 4);
+
     const getHost = () => {
         if (Object.keys(track).length === 0) return null;
         const hid = Object.keys(track).sort((a, b) => a.localeCompare(b))[0];
@@ -31,30 +33,30 @@ export async function main() {
         track[w.id] = w;
 
         if (Object.keys(track).length === 1) {
-            console.log("CREATE: Init PEER");
+            console.log(`CREATE: Init PEER(${last4(w.id)})`);
             return;
         };
 
         const h = getHost();
         if (h.id === w.id) {
-            console.log("CREATE: NEW HOST");
+            console.log(`CREATE: NEW HOST(${last4(w.id)})`);
         } else {
-            console.log("CREATE: PEER");
+            console.log(`CREATE: PEER(${last4(w.id)})`);
         }
 
         w.connect((Math.random() < 0.2) ? old_host.id : getPeer().id);
     }
 
-    function removePeer() {
-        if (Math.random() < 0.4) {
-            console.log("REM: HOST");
+    function removePeer(shift) {
+        if (shift) {
             const h = getHost();
+            console.log(`REM: HOST(${last4(h.id)})`);
             h.close();
             delete track[h.id];
 
         } else {
-            console.log("REM: PEER");
             const p = getPeer();
+            console.log(`REM: PEER(${last4(p.id)})`);
             p.close();
             delete track[p.id];
 
@@ -62,26 +64,18 @@ export async function main() {
     }
     
     window.addEventListener("keypress", async e => {
-        if (e.code === "Space") {
-            if (Object.keys(track).length < 2) {
-                await createPeer();
-    
-            } else if (Object.keys(track).length >= 2) {
-                removePeer();
-    
-            } else if (Math.random() > 0.4) {
-                await createPeer();
-    
-            } else {
-                removePeer();
-                
-            }
+        const shift = e.shiftKey;
+        if (e.key.toLowerCase() === "w") {
+            await createPeer();
+
+        } else if (e.key.toLowerCase() === "s") {
+            removePeer(shift);
+
         }
     });
 
     // Display stats
     const vp = document.querySelector(".viewport");
-    const last4 = id => id.slice(id.length - 4);
 
     async function render() {
         const host = getHost();
@@ -90,22 +84,20 @@ export async function main() {
             const true_count = Object.keys(track).length;
             const host_count = host._debug_info().peers.length + 1;
             
-            let incorrect = 0;
-            for (let w of Object.values(track)) {
-                const count = w._debug_info().peers.length + 1;
-                if (true_count !== count) {
-                    incorrect += 1;
-                }
-            }
     
             const data = [
                 `Host: ${hlf}`,
                 `True Count: ${true_count}`,
                 `Host Count: ${host_count}`,
-                `Incorrect: ${incorrect}`,
-                `Overall: ${(incorrect === 0) ? 'CORRECT' : 'OUT'}`
+                `` // Blank line
             ];
     
+            for (let w of Object.values(track)) {
+                data.push(
+                    `${last4(w.id)}: ${w._debug_info().peers.join(", ")}`
+                )
+            }
+
             vp.innerHTML = data.join("\n");
         }
 
