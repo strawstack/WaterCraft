@@ -15,25 +15,11 @@ export async function main() {
         if (p.id !== hid) p.connect(hid);
     }
 
-    const host = peers.find(p => p.id === hid);
-    setTimeout(() => {
-        host.send("msg from host");
-    }, 3000);
+    // const host = peers.find(p => p.id === hid);
 
     console.log("BREAK");
     const other = await waterCraft(nhid);
     peers.push(other);
-
-    // Monitor messages
-    // w1.onMsg(msg => {
-    //     console.log(`w1: ${msg}`);
-    // });
-    // w2.onMsg(msg => {
-    //     console.log(`w2: ${msg}`);
-    // });
-    // w3.onMsg(msg => {
-    //     console.log(`w3: ${msg}`);
-    // });
 
     const vp = document.querySelector(".viewport");
     window.addEventListener("keypress", e => {

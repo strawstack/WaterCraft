@@ -129,6 +129,7 @@ export async function waterCraft(fid) {
                             }
                             return;
                         } else if (content.type === "WC_NEW") {
+                            log(`receive WC_NEW from fid: ${last4(fid)}`);
                             conn.send(
                                 JSON.stringify({ 
                                     type: 'WC_INTRO',
@@ -136,6 +137,7 @@ export async function waterCraft(fid) {
                                 })
                             );
                         } else if (content.type === "WC_INTRO") {
+                            log(`receive WC_INTRO from fid: ${last4(fid)}`);
                             const { peers: new_peers } = content;
                             for (const npid of new_peers) {
                                 if (npid === pid) continue; // not self
