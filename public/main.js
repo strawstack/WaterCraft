@@ -2,6 +2,26 @@ import { waterCraft } from './waterCraft.js'
       
 export async function main() {
     
+    async function wait() {
+        return new Promise((res, _) => {
+            setTimeout(res, Math.random() * 1200);
+        });
+    }
+
+    // Record all peers
+    const track = {};
+
+    async function peer() {
+        return waterCraft();
+    }
+
+    setInterval(() => {
+        // Record all stats
+        // display them
+        // Number of peers that don't have correct knowledge
+        // 
+    }, 1000);
+
     // Create Peers
     const peers = [];
     peers.push(await waterCraft());
