@@ -8,6 +8,7 @@ export async function waterCraft(fid) {
     const conns = {};
 
     const peer = new Peer();
+    let isNew = true;
 
     const pid = await new Promise((res, _) => {
         peer.on('open', (pid) => res(pid));
@@ -59,7 +60,12 @@ export async function waterCraft(fid) {
             conns[cid].isOpen = true;
             log(`conn open with fid: ${last4(fid)}`);
 
-            if (isHost()) { // new peer joins; inform others
+            if(isNew) {
+                conn.send(JSON.stringify(
+                    { type: 'WC_NEW' }
+                ));
+
+            } else if (isHost()) { // new peer joins; inform others
                 log(`onConnection: isHost: broadcast peer list...`);
                 log(`  peers: ${[...Object.keys(peers), pid].map(p => last4(p))}`);
                 broadcast({ 
@@ -122,6 +128,20 @@ export async function waterCraft(fid) {
                                 log(`  peers: ${Object.keys(peers).map(p => last4(p))}`);
                             }
                             return;
+                        } else if (content.type === "WC_NEW") {
+                            conn.send(
+                                JSON.stringify({ 
+                                    type: 'WC_INTRO',
+                                    peers: [...Object.keys(peers), pid]
+                                })
+                            );
+                        } else if (content.type === "WC_INTRO") {
+                            const { peers: new_peers } = content;
+                            for (const npid of new_peers) {
+                                if (npid === pid) continue; // not self
+                                if (!(npid in peers)) onConnection(peer.connect(npid));
+                            }
+                            isNew = false;
                         }
                     }
                 } catch (e) {}
@@ -160,6 +180,8 @@ export async function waterCraft(fid) {
 
     setInterval(() => {
         log(`interval`);
+        if (isNew) return;
+        
         if (isHost()) { // remove unresponsive peers
             log(`  isHost`);
             const remove = [];

@@ -17,7 +17,10 @@ If one wants to create a P2P network of several nodes, they may begin by having 
 
 # Issues
 
-- [ ] When a new peer joins, they can become the host before learning about other peers
+- [x] When a new peer joins, they can become the host before learning about other peers
+    - New peers have a `new` state, they remain in this state until they reach another peer.
+    - The other peer will receive a `WC_NEW` message from them.
+    - The `new` peer will become not new upon receiving an `INTRO` message.
 
 # Overview
 
