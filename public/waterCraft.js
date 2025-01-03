@@ -84,72 +84,73 @@ export async function waterCraft(fid) {
             }
 
             conn.on('data', data => {
-                try {
-                    const content = JSON.parse(data);
-                    if ('type' in content) {
-                        if (content.type === "WC_PING") {
-                            log(`receive WC_PING from fid: ${last4(fid)}`);
-                            if (isHost()) {
-                                log(`  isHost`);
-                                if (fid in peers) {
-                                    log(`  update ping for fid: ${last4(fid)}`);
-                                    peers[fid].ping = new Date();
-                                } else {
-                                    log(`  call onConn for fid: ${last4(fid)}`);
-                                    onConnection(peer.connect(fid));
-                                }
-                            } else { // not host
-                                log(`  not host`);
-                                if (fid === getHost()) {
-                                    log(`  update host(${last4(fid)}) ping and WC_PING host`);
-                                    peers[fid].ping = new Date();
-                                    conn.send(
-                                        JSON.stringify({ type: 'WC_PING' })
-                                    );
-                                } else {
-                                    log(`  send WC_PEERS to fid: ${last4(fid)}`);
-                                    conn.send(
-                                        JSON.stringify({ 
-                                            type: 'WC_PEERS',
-                                            peers: [...Object.keys(peers), pid]
-                                        })
-                                    );
-                                }
+                const content = JSON.parse(data);
+                if ('type' in content) {
+                    if (content.type === "WC_PING") {
+                        log(`receive WC_PING from fid: ${last4(fid)}`);
+                        if (isHost()) {
+                            log(`  isHost`);
+                            if (fid in peers) {
+                                log(`  update ping for fid: ${last4(fid)}`);
+                                peers[fid].ping = new Date();
+                            } else {
+                                log(`  call onConn for fid: ${last4(fid)}`);
+                                onConnection(peer.connect(fid));
                             }
-                            return;
+                        } else { // not host
+                            log(`  not host`);
+                            if (fid === getHost()) {
+                                log(`  update host(${last4(fid)}) ping and WC_PING host`);
+                                peers[fid].ping = new Date();
+                                conn.send(
+                                    JSON.stringify({ type: 'WC_PING' })
+                                );
+                            } else {
+                                log(`  send WC_PEERS to fid: ${last4(fid)}`);
+                                conn.send(
+                                    JSON.stringify({ 
+                                        type: 'WC_PEERS',
+                                        peers: [...Object.keys(peers), pid]
+                                    })
+                                );
+                            }
+                        }
+                        return;
 
-                        } else if (content.type === "WC_PEERS") {
-                            log(`receive WC_PEERS from fid: ${last4(fid)}`);
-                            if (!isHost()) {
-                                log(`  not host update peers`);
-                                const { peers: new_peers } = content;
-                                for (const npid of new_peers) {
-                                    if (npid === pid) continue; // not self
-                                    if (!(npid in peers)) onConnection(peer.connect(npid));
-                                }
-                                log(`  peers: ${Object.keys(peers).map(p => last4(p))}`);
-                            }
-                            return;
-                        } else if (content.type === "WC_NEW") {
-                            log(`receive WC_NEW from fid: ${last4(fid)}`);
-                            conn.send(
-                                JSON.stringify({ 
-                                    type: 'WC_INTRO',
-                                    peers: [...Object.keys(peers), pid]
-                                })
-                            );
-                        } else if (content.type === "WC_INTRO") {
-                            log(`receive WC_INTRO from fid: ${last4(fid)}`);
+                    } else if (content.type === "WC_PEERS") {
+                        log(`receive WC_PEERS from fid: ${last4(fid)}`);
+                        if (!isHost()) {
+                            log(`  not host update peers`);
                             const { peers: new_peers } = content;
                             for (const npid of new_peers) {
                                 if (npid === pid) continue; // not self
                                 if (!(npid in peers)) onConnection(peer.connect(npid));
                             }
-                            isNew = false;
+                            log(`  peers: ${Object.keys(peers).map(p => last4(p))}`);
                         }
+                        return;
+                    } else if (content.type === "WC_NEW") {
+                        log(`receive WC_NEW from fid: ${last4(fid)}`);
+                        conn.send(
+                            JSON.stringify({ 
+                                type: 'WC_INTRO',
+                                peers: [...Object.keys(peers), pid]
+                            })
+                        );
+                    } else if (content.type === "WC_INTRO") {
+                        log(`receive WC_INTRO from fid: ${last4(fid)}`);
+                        const { peers: new_peers } = content;
+                        for (const npid of new_peers) {
+                            if (npid === pid) continue; // not self
+                            if (!(npid in peers)) onConnection(peer.connect(npid));
+                        }
+                        isNew = false;
+                    } else {
+                        userOnMsg(content);
                     }
-                } catch (e) {}
-                userOnMsg(data);
+                } else {
+                    userOnMsg(content);
+                }
             });
         });
     };
@@ -205,7 +206,7 @@ export async function waterCraft(fid) {
                 log(`  remove: ${remove.map(p => last4(p))}`);
                 broadcast({ // Inform others of unresponsive peers
                     type: 'WC_PEERS',
-                    peers
+                    peers: [...Object.keys(peers), pid]
                 });
             }
             broadcast({ // Ping peers, so they know host is responsive

@@ -19,23 +19,25 @@ export async function main() {
         return track[hid];
     };
 
-    const getPeer = () => {
-        if (Object.keys(track).length < 2) return null;
-        const r = Math.floor(Math.random() * Object.keys(track).length - 1) + 1;
-        const pid = Object.keys(track).sort((a, b) => a.localeCompare(b))[r];
-        return track[pid];
+    function randomPick(lst) {
+        return lst[Math.floor(Math.random() * lst.length)];
+    }
+
+    const getPeer = (nid) => {
+        const lst = Object.keys(track)
+            .sort((a, b) => a.localeCompare(b))
+            .filter(id => id !== nid);
+        return (lst.length === 0) ? null : track[randomPick(lst)];
     };
 
     async function createPeer() {
-        const old_host = getHost();
-
         const w = await waterCraft();
         track[w.id] = w;
 
         if (Object.keys(track).length === 1) {
             console.log(`CREATE: Init PEER(${last4(w.id)})`);
             return;
-        };
+        }
 
         const h = getHost();
         if (h.id === w.id) {
@@ -44,7 +46,7 @@ export async function main() {
             console.log(`CREATE: PEER(${last4(w.id)})`);
         }
 
-        w.connect((Math.random() < 0.2) ? old_host.id : getPeer().id);
+        w.connect(getPeer(w.id).id);
     }
 
     function removePeer(shift) {
