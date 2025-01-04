@@ -8,24 +8,11 @@ If one wants to create a P2P network of several nodes, they may begin by having 
 
 # Todo
 
-- [x] Consider that every peer should maintain an alive list for themselves because.
-    - They have to track if the host is still there.
-    - They need to know how to find a new host if the host leaves.
-- [x] If you are pinged and are not the host, then respond with a list of all peers.
-- [x] If you're the host and are removing peers notify others.
-- [x] When a new peer contacts the host, the host should broadcast a list of all peers.
-
-# Issues
-
-- [x] Network can become fragmented
-    - [x] On node deletion, peers sometimes lose information about what the full network is
-    - [x] When the host is taken out, the new host drops peers
-    - [x] Fixed: when host changes peers were losing contact because of old ping times.
-- [x] When a new peer joins, they can become the host before learning about other peers
-    - New peers have a `new` state, they remain in this state until they reach another peer.
-    - The other peer will receive a `WC_NEW` message from them.
-    - The `new` peer will become not new upon receiving an `INTRO` message.
-
+- [ ] Create data frames that can be rendered as tables.
+    - Table show time laps of network in order to highlight failure points.
+    - Add back and forth scroll button to tables.
+    - Each table could have text that explains what occured since the prev table.
+ 
 # Overview
 
 1. Every interval of duration `STEP`, the host checks for unresponsive peers. If peers are removed, a new peer list is broadcasted.

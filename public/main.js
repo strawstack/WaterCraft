@@ -11,7 +11,7 @@ export async function main() {
     // Record all peers
     const track = {};
 
-    const last4 = id => id.slice(id.length - 4);
+    const last4 = id => id.slice(id.length - 2);
 
     const getHost = () => {
         if (Object.keys(track).length === 0) return null;
