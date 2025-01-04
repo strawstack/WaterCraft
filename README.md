@@ -17,6 +17,9 @@ If one wants to create a P2P network of several nodes, they may begin by having 
 
 # Issues
 
+- [ ] Network can become fragmented
+    - [ ] On node deletion, peers sometimes lose information about what the full network is
+    - [ ] Unclear so far what can cause this
 - [x] When a new peer joins, they can become the host before learning about other peers
     - New peers have a `new` state, they remain in this state until they reach another peer.
     - The other peer will receive a `WC_NEW` message from them.
