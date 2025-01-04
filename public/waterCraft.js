@@ -8,6 +8,7 @@ export async function waterCraft(fid) {
     const conns = {};
 
     let isNew = true;
+    let newHost = true;
     const peer = new Peer();
     
     const pid = await new Promise((res, _) => {
@@ -15,7 +16,7 @@ export async function waterCraft(fid) {
     });
 
     // Debug
-    const D = false;
+    const D = true;
     const last4 = id => id.slice(id.length - 4);
     const log = msg => {
         if (D) console.log(`${last4(pid)}: ${msg}`);
@@ -128,7 +129,10 @@ export async function waterCraft(fid) {
 
                 } else if (content.type === "WC_PEERS") {
                     log(`receive WC_PEERS from fid: ${last4(fid)}`);
-                    if (!isHost()) {
+                    if (isHost()) {
+                        peers[fid].ping = new Date();
+
+                    } else {
                         log(`  not host update peers`);
                         const { peers: new_peers } = content;
                         connectWithPeers(new_peers);
@@ -187,46 +191,63 @@ export async function waterCraft(fid) {
         }
     };
 
-    setInterval(() => {
+    const clearId = setInterval(() => {
         log(`interval`);
         if (isNew) return;
         
         if (isHost()) { // remove unresponsive peers
             log(`  isHost`);
-            const remove = [];
-            for (const fid in peers) {
-                const now = new Date();
-                const { ping } = peers[fid];
-                log(`  ping: ${now - ping}`);
-                if (now - ping > 2.5 * STEP) remove.push(fid);
+
+            if (newHost) {
+                newHost = false;
+                for (const fid in peers) {
+                    peers[fid].ping = new Date();
+                }
+
+            } else {
+                const remove = [];
+                for (const fid in peers) {
+                    const now = new Date();
+                    const { ping } = peers[fid];
+                    log(`  ping: ${now - ping}`);
+                    if (now - ping > 2.5 * STEP) remove.push(fid);
+                }
+                for (const fid of remove) {
+                    const { cid } = peers[fid];
+                    delete peers[fid];
+                    delete conns[cid];
+                }
+                if (remove.length > 0) {
+                    log(`  removing...`);
+                    log(`  remove: ${remove.map(p => last4(p))}`);
+                    broadcast({ // Inform others of unresponsive peers
+                        type: 'WC_PEERS',
+                        peers: [...Object.keys(peers), pid]
+                    });
+                }
             }
-            for (const fid of remove) {
-                const { cid } = peers[fid];
-                delete peers[fid];
-                delete conns[cid];
-            }
-            if (remove.length > 0) {
-                log(`  removing...`);
-                log(`  remove: ${remove.map(p => last4(p))}`);
-                broadcast({ // Inform others of unresponsive peers
-                    type: 'WC_PEERS',
-                    peers: [...Object.keys(peers), pid]
-                });
-            }
+
             broadcast({ // Ping peers, so they know host is responsive
                 type: 'WC_PING'
             });
 
         } else { // not host
+            newHost = true;
+
             // remove if unresponsive
             const hid = getHost();
             const now = new Date(); 
             const { ping } = peers[hid];
             if (now - ping > 2.5 * STEP) {
+                log(`  removing fid: ${hid}`);
                 const { cid } = peers[hid];
                 delete peers[hid];
                 delete conns[cid];
             }
+
+            // Assume new host is responsive
+            const new_hid = getHost();
+            peers[new_hid].ping = new Date();
         }
     }, STEP);
 
@@ -236,6 +257,12 @@ export async function waterCraft(fid) {
         send,
         onMsg,
         _debug_info,
-        close: () => peer.destroy()
+        close: () => {
+            clearInterval(clearId);
+            for (let cid in conns) {
+                conns[cid].conn.close();
+            }
+            peer.destroy();
+        }
     };
 }
