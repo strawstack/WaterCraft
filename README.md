@@ -9,10 +9,10 @@ If one wants to create a P2P network of several nodes, they may begin by having 
 # Todo
 
 - [ ] Create data frames that can be rendered as tables.
-    - Table show time laps of network in order to highlight failure points.
-    - Add back and forth scroll button to tables.
-    - Each table could have text that explains what occured since the prev table.
- 
+    - Pass a debugLog object into waterCraft.
+    - When waterCraft does a notable action it gets logged to debugLog.
+    - debugLog is rendered as a table with highlights and a details area.
+
 # Overview
 
 1. Every interval of duration `STEP`, the host checks for unresponsive peers. If peers are removed, a new peer list is broadcasted.

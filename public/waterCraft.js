@@ -1,6 +1,6 @@
 import { Peer } from "./peerjs.min.js"
 
-export async function waterCraft(fid) {
+export async function waterCraft({ update }) {
 
     const STEP = 1000; // Ping interval
 
@@ -16,17 +16,22 @@ export async function waterCraft(fid) {
     });
 
     // Debug
-    const D = true;
+    const D = false;
     const l4 = id => id.slice(id.length - 2);
     const log = msg => {
         if (D) console.log(`${l4(pid)} ${msg}`);
     };
 
     log("is open");
+    update(network => {
+        network.nodes[pid] = {
+            peers,
+        };
+    });
 
     const _debug_info = () => {
         return {
-            peers: Object.keys(peers).map(p => l4(p)) 
+            peers: Object.keys(peers).map(p => l4(p))
         };
     };
 

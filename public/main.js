@@ -2,6 +2,17 @@ import { waterCraft } from './waterCraft.js'
       
 export async function main() {
     
+    const debug_data = [];
+    const network = {
+        nodes: {}
+    };
+    const update = func => {
+        func(network);
+        debug_data.push(JSON.parse(JSON.stringify(
+            network
+        )));
+    };
+
     async function wait(ms) {
         return new Promise((res, _) => {
             setTimeout(res, ms);
@@ -31,7 +42,7 @@ export async function main() {
     };
 
     async function createPeer() {
-        const w = await waterCraft();
+        const w = await waterCraft({ update });
         track[w.id] = w;
 
         if (Object.keys(track).length === 1) {
@@ -65,7 +76,20 @@ export async function main() {
         }
     }
     
-    window.addEventListener("keypress", async e => {
+    // Display stats
+    let index = 0;
+    const rowElems = document.querySelectorAll(".viewport>.table>.row");
+    const table = Array.from(rowElems).map(row => {
+        return Array.from(row.querySelectorAll(".col"))
+    });
+    async function render(_data) {
+        const data = _data[index];
+
+
+    }
+    // requestAnimationFrame(() => render(debug_data));
+
+    window.addEventListener("keydown", async e => {
         const shift = e.shiftKey;
         if (e.key.toLowerCase() === "w") {
             await createPeer();
@@ -73,38 +97,14 @@ export async function main() {
         } else if (e.key.toLowerCase() === "s") {
             removePeer(shift);
 
+        } else if (e.key === "ArrowRight") {
+            index += 1;
+            requestAnimationFrame(() => render(debug_data));
+
+        } else if (e.key === "ArrowLeft") {
+            index -= 1;
+            index = Math.max(index, 0);
+            requestAnimationFrame(() => render(debug_data));
         }
     });
-
-    // Display stats
-    const vp = document.querySelector(".viewport");
-
-    async function render() {
-        const host = getHost();
-        if (host !== null) {
-            const hlf = last4(host.id);
-            const true_count = Object.keys(track).length;
-            const host_count = host._debug_info().peers.length + 1;
-            
-    
-            const data = [
-                `Host: ${hlf}`,
-                `True Count: ${true_count}`,
-                `Host Count: ${host_count}`,
-                `` // Blank line
-            ];
-    
-            for (let w of Object.values(track)) {
-                data.push(
-                    `${last4(w.id)}: ${w._debug_info().peers.join(", ")}`
-                )
-            }
-
-            vp.innerHTML = data.join("\n");
-        }
-
-        await wait(250); 
-        requestAnimationFrame(() => render());
-    }
-    requestAnimationFrame(() => render());
 }
