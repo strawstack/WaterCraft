@@ -1,6 +1,6 @@
 import { Peer } from "./peerjs.min.js"
 
-export async function waterCraft({ update }) {
+export async function waterCraft({ fid, update }) {
 
     const STEP = 1000; // Ping interval
 
@@ -16,17 +16,20 @@ export async function waterCraft({ update }) {
     });
 
     // Debug
-    const D = false;
+    const D = true;
     const l4 = id => id.slice(id.length - 2);
     const log = msg => {
-        if (D) console.log(`${l4(pid)} ${msg}`);
+        const content = `${l4(pid)} ${msg}`;
+        if (D) console.log(content);
+        return content;
     };
 
     log("is open");
     update(network => {
         network.nodes[pid] = {
-            peers,
+            peers
         };
+        network.info = log("is open");
     });
 
     const _debug_info = () => {
@@ -54,10 +57,6 @@ export async function waterCraft({ update }) {
         for (const { isOpen, conn } of Object.values(conns) ) {
             if (isOpen) {
                 conn.send(json);
-
-            } else {
-                log(`conn is closed to ${l4(conn.peer)}`);
-
             }
         }
     };
@@ -75,26 +74,57 @@ export async function waterCraft({ update }) {
     const onConnection = async conn => {
         const { peer: fid, connectionId: cid } = conn;
         log(`conn with ${l4(fid)}`);
-
+        
         if (fid in peers && peers[fid].cid in conns) return; // already connected
         peers[fid] = { cid, ping: new Date() };
         conns[cid] = { fid, isOpen: false, conn };
+
+        update(network => {
+            network.nodes[pid] = {
+                peers
+            };
+            network.info = log(`conn with ${l4(fid)}`);
+        });
 
         await open(conn);
         conns[cid].isOpen = true;
 
         log(`conn open with ${l4(fid)}`);
+        update(network => {
+            network.nodes[pid] = {
+                peers
+            };
+            network.info = log(`conn open with ${l4(fid)}`);
+        });
 
         if(isNew) {
             log(`send WC_NEW to ${l4(fid)}`);
+            update(network => {
+                network.nodes[pid] = {
+                    peers
+                };
+                network.info = log(`send WC_NEW to ${l4(fid)}`);
+            });
             conn.send(JSON.stringify({ type: 'WC_NEW' }));
 
         } else if (isHost()) { // new peer joins; inform others
             log(`isHost: broadcast peers: ${listPeers(peers)}`);
+            update(network => {
+                network.nodes[pid] = {
+                    peers
+                };
+                network.info = log(`isHost: broadcast peers: ${listPeers(peers)}`);
+            });
             broadcast({ type: 'WC_PEERS', peers: [...Object.keys(peers), pid] });
 
         } else { // not host; respond with peer list
             log(`send WC_PEERS to ${l4(fid)}: ${listPeers(peers)}`);
+            update(network => {
+                network.nodes[pid] = {
+                    peers
+                };
+                network.info = log(`send WC_PEERS to ${l4(fid)}: ${listPeers(peers)}`);
+            });
             conn.send(JSON.stringify({ 
                 type: 'WC_PEERS',
                 peers: [...Object.keys(peers), pid]
@@ -104,6 +134,14 @@ export async function waterCraft({ update }) {
 
         function connectWithPeers(new_peers) {
             log(`connect with new peers: ${new_peers.map(p => l4(p)).join(", ")}`);
+            update(network => {
+                network.nodes[pid] = {
+                    peers
+                };
+                network.info = log(
+                    `connect with new peers: ${new_peers.map(p => l4(p)).join(", ")}`
+                );
+            });            
             for (const npid of new_peers) {
                 if (npid === pid) continue; // not self
                 if (!(npid in peers)) onConnection(peer.connect(npid));
@@ -115,9 +153,21 @@ export async function waterCraft({ update }) {
             if ('type' in content) {
                 if (content.type === "WC_PING") {
                     log(`receive WC_PING from ${l4(fid)}`);
+                    update(network => {
+                        network.nodes[pid] = {
+                            peers
+                        };
+                        network.info = log(`receive WC_PING from ${l4(fid)}`);
+                    });
                     if (isHost()) {
                         if (fid in peers) { // Update sender's ping
                             log(`isHost: update ping for ${l4(fid)}`);
+                            update(network => {
+                                network.nodes[pid] = {
+                                    peers
+                                };
+                                network.info = log(`isHost: update ping for ${l4(fid)}`);
+                            });              
                             peers[fid].ping = new Date();
 
                         } else { // Or connect with new Peer
@@ -128,12 +178,32 @@ export async function waterCraft({ update }) {
                     } else { // not host
                         if (fid === getHost()) { // If sender is host, update ping 
                             log(`update ping for host(${l4(fid)})`);
+                            update(network => {
+                                network.nodes[pid] = {
+                                    peers
+                                };
+                                network.info = log(`update ping for host(${l4(fid)})`);
+                            });
                             peers[fid].ping = new Date();
                             log(`send WC_PING`);
+                            update(network => {
+                                network.nodes[pid] = {
+                                    peers
+                                };
+                                network.info = log(`send WC_PING`);
+                            });
                             conn.send(JSON.stringify({ type: 'WC_PING' }));
 
                         } else { // Respond with peer list if sender is not host
                             log(`send WC_PEERS to ${l4(fid)}: ${listPeers(peers)}`);
+                            update(network => {
+                                network.nodes[pid] = {
+                                    peers
+                                };
+                                network.info = log(
+                                    `send WC_PEERS to ${l4(fid)}: ${listPeers(peers)}`
+                                );
+                            });
                             conn.send(
                                 JSON.stringify({ 
                                     type: 'WC_PEERS',
@@ -147,6 +217,12 @@ export async function waterCraft({ update }) {
                     if (isHost()) {
                         log(`receive WC_PEERS update ping for ${l4(fid)}`);
                         peers[fid].ping = new Date();
+                        update(network => {
+                            network.nodes[pid] = {
+                                peers
+                            };
+                            network.info = log(`receive WC_PEERS update ping for ${l4(fid)}`);
+                        });
 
                     } else {
                         const { peers: new_peers } = content;
@@ -156,6 +232,14 @@ export async function waterCraft({ update }) {
                 } else if (content.type === "WC_NEW") {
                     log(`receive WC_NEW from ${l4(fid)}`);
                     log(`respond with WC_INTRO: ${listPeers(peers)}`)
+                    update(network => {
+                        network.nodes[pid] = {
+                            peers
+                        };
+                        const a = log(`receive WC_NEW from ${l4(fid)}`);
+                        const b = log(`respond with WC_INTRO: ${listPeers(peers)}`);
+                        network.info = `${a} and ${b}`;
+                    });                    
                     conn.send(
                         JSON.stringify({ 
                             type: 'WC_INTRO',
@@ -165,6 +249,12 @@ export async function waterCraft({ update }) {
 
                 } else if (content.type === "WC_INTRO") {
                     log(`receive WC_INTRO from ${l4(fid)}`);
+                    update(network => {
+                        network.nodes[pid] = {
+                            peers
+                        };
+                        network.info = log(`receive WC_INTRO from ${l4(fid)}`);
+                    });
                     const { peers: new_peers } = content;
                     connectWithPeers(new_peers);
                     isNew = false;
@@ -208,6 +298,12 @@ export async function waterCraft({ update }) {
         if (isHost()) { // remove unresponsive peers
             if (newHost) {
                 log(`is new Host reset ping for peers: ${listPeers(peers)}`);
+                update(network => {
+                    network.nodes[pid] = {
+                        peers
+                    };
+                    network.info = log(`is new Host reset ping for peers: ${listPeers(peers)}`);
+                });
                 newHost = false;
                 for (const fid in peers) {
                     peers[fid].ping = new Date();
@@ -229,6 +325,14 @@ export async function waterCraft({ update }) {
                 if (remove.length > 0) {
                     log(`remove unresponsive peers: ${remove.map(p => l4(p)).join(", ")} `);
                     log(`broadcast WC_PEERS`);
+                    update(network => {
+                        network.nodes[pid] = {
+                            peers
+                        };
+                        network.info = log(
+                            `remove unresponsive peers: ${remove.map(p => l4(p)).join(", ")} and broadcast WC_PEERS`
+                        );
+                    });
                     broadcast({ // Inform others of unresponsive peers
                         type: 'WC_PEERS',
                         peers: [...Object.keys(peers), pid]
@@ -237,6 +341,12 @@ export async function waterCraft({ update }) {
             }
 
             log(`broadcast WC_PING: ${listPeers(peers)}`);
+            update(network => {
+                network.nodes[pid] = {
+                    peers
+                };
+                network.info = log(`broadcast WC_PING: ${listPeers(peers)}`);
+            });
             broadcast({ // Ping peers, so they know host is responsive
                 type: 'WC_PING'
             });
@@ -249,11 +359,18 @@ export async function waterCraft({ update }) {
             const now = new Date(); 
             const { ping } = peers[hid];
             if (now - ping > 2.5 * STEP) {
-                log(`remove ${l4(hid)}`);
+                log(`remove ${l4(hid)}`);  
                 const { cid } = peers[hid];
                 delete peers[hid];
                 conns[cid].conn.close();
                 delete conns[cid];
+
+                update(network => {
+                    network.nodes[pid] = {
+                        peers
+                    };
+                    network.info = log(`remove ${l4(hid)}`);
+                });
 
                 // Assume new host is responsive
                 // Note: this peer may nw be the host after above removal
@@ -261,6 +378,12 @@ export async function waterCraft({ update }) {
                     const new_hid = getHost();
                     log(`update ping for ${l4(new_hid)}`);
                     peers[new_hid].ping = new Date();
+                    update(network => {
+                        network.nodes[pid] = {
+                            peers
+                        };
+                        network.info = log(`update ping for ${l4(new_hid)}`);
+                    });
                 }
             }
         }
