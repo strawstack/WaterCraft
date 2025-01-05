@@ -8,7 +8,10 @@ If one wants to create a P2P network of several nodes, they may begin by having 
 
 # Todo
 
-- [ ] Create data frames that can be rendered as tables.
+- [ ] For debug table, minimize the amount of info messages
+    - Focus only on key messages that cause things to occur.
+
+- [x] Create data frames that can be rendered as tables.
     - Pass a debugLog object into waterCraft.
     - When waterCraft does a notable action it gets logged to debugLog.
     - debugLog is rendered as a table with highlights and a details area.

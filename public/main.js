@@ -106,6 +106,17 @@ export async function main() {
         for (let i = 0; i < order.length; i++) {
             table[0][i + 1].innerHTML = l2(order[i]);
         }
+
+        for (let i = 0; i < order.length; i++) {
+            for (let j = 0; j < order.length; j++) {
+                if (i === j) continue;
+                const { peers } = data.nodes[order[i]];
+                if (order[j] in peers) {
+                    table[i + 1][j + 1].innerHTML = "X";
+                }
+            }
+        }
+
         infoElem.innerHTML = data.info;
     }
     requestAnimationFrame(() => render(debug_data, 0));
